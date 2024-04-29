@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Display Rewards</title>
+  <script src="https://unpkg.com/@solana/web3.js@latest/lib/index.iife.js"></script>
+</head>
+<body>
+  <button id="runCodeButton">GET ALL ACCOUNT</button>
+  <button id="downloadButton">Download Rewards Data</button>
+  <div id="rewardsList"></div>
+
+  <script>
+    document.getElementById('runCodeButton').addEventListener('click', async () => {
+      await displayAllRewards();
+    });
+
+    async function displayAllRewards() {
+      const rewards = await getAllRewardsAccount();
+      const rewardsList = document.getElementById('rewardsList');
+
+      rewardsList.innerHTML = ''; // Clear previous data
+
+      rewards.forEach(reward => {
+        const rewardElement = document.createElement('div');
+        rewardElement.textContent = JSON.stringify(reward);
+        rewardsList.appendChild(rewardElement);
+      });
+    }
+
+    async function downloadRewardsData() {
+      const rewards = await getAllRewardsAccount();
+      const rewardsText = rewards.map(reward => JSON.stringify(reward)).join('\n');
+
+      const blob = new Blob([rewardsText], { type: 'text/plain' });
+      const url = window.URL.createObjectURL(blob);
+
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', 'rewards_data.txt');
+
+      document.body.appendChild(link);
+      link.click();
+
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+    }
+
+    document.getElementById('downloadButton').addEventListener('click', async () => {
+      await downloadRewardsData();
+    });
+
+    const Keypair = solanaWeb3.Keypair;
+    const CONNECTION = new solanaWeb3.Connection(solanaWeb3.clusterApiUrl("devnet"));
+    const PROGRAM = new solanaWeb3.PublicKey("8SJZiCLQWG8w6JqbStGjxaxBmhJpMDUse7rxCg7QgCRa");
+
+    class Rewards {
+      constructor(predecessor, successor, lastClaim, prevRewards, totalClaimed, lastUpdate) {
+        this.predecessor = predecessor;
+        this.successor = successor;
+        this.lastClaimSlot = lastClaim;
+        this.previousSeasonRewards = prevRewards;
+        this.totalClaimedRewards = totalClaimed;
+        this.lastUpdateSlot = lastUpdate;
+      }
+    }
+
+    function arrayToNum(array) {
+      const arr = new Uint8Array(array);
+      const view = new DataView(arr.buffer || arr);
+      const num = view.getBigUint64(0, true);
+      return num.toString();
+    }
+
+    function arrayToNum32(array) {
+      const arr = new Uint8Array(array);
+      const view = new DataView(arr.buffer || arr);
+      const num = view.getUint32(0, true);
+      return num.toString();
+    }
+
+    async function getRewards(data) {
+      let rewards = new Rewards(
+        new solanaWeb3.PublicKey(data.slice(0, 32)),
+        new solanaWeb3.PublicKey(data.slice(32, 64)),
+        arrayToNum(data.slice(64, 72)),
+        arrayToNum(data.slice(72, 80)),
+        arrayToNum(data.slice(80, 88)),
+        arrayToNum(data.slice(88, 96))
+      );
+      return rewards;
+    }
+
+    async function getRewardsAccountDataFromWallet(wallet, connection) {
+      let rewardsAccount = solanaWeb3.PublicKey.findProgramAddressSync(
+        ["rewards", wallet.toBuffer()],
+        PROGRAM
+      );
+
+      let dat = await connection.getParsedAccountInfo(rewardsAccount[0]);
+
+      let data = dat.value.data;
+
+      let rewards = await getRewards(data);
+      return rewards;
+    }
+
+    async function getBookkeeperAccountData(connection) {
+      let bookkeeper = solanaWeb3.PublicKey.findProgramAddressSync(
+        ["bookkeeper"],
+        PROGRAM
+      );
+
+      let dat = await connection.getParsedAccountInfo(bookkeeper[0]);
+
+      let data = dat.value.data;
+
+      let book = new Bookkeeper(
+        new solanaWeb3.PublicKey(data.slice(0, 32)),
+        new solanaWeb3.PublicKey(data.slice(32, 64)),
+        arrayToNum32(data.slice(64, 68)),
+        arrayToNum(data.slice(68, 76)),
+      );
+      return book;
+    }
+
+    async function getAllRewardsAccount() {
+      const accounts = await CONNECTION.getParsedProgramAccounts(
+        PROGRAM,
+        {
+          filters: [
+            {
+              dataSize: 96,
+            },
+          ],
+        }
+      );
+
+      let AllRewards = [];
+
+      const book = await getBookkeeperAccountData(CONNECTION);
+      let leg = book.leg;
+
+      while (true) {
+        const reward = await getRewardsAccountDataFromWallet(leg, CONNECTION);
+        AllRewards.push(reward);
+
+        leg = reward.successor;
+
+        if (leg.toBase58() === solanaWeb3.PublicKey.default.toBase58()) {
+          break;
+        }
+      }
+
+      return AllRewards;
+    }
+
+    class Bookkeeper {
+      constructor(head, leg, totalAccounts, currentSupply) {
+        this.head = head;
+        this.leg = leg;
+        this.totalAccounts = totalAccounts;
+        this.currentSupply = currentSupply;
+      }
+    }
+  </script>
+</body>
+</html>
