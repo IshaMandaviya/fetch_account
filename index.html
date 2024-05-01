@@ -41,12 +41,12 @@ async function displayAllRewards() {
       const rewardElement = document.createElement('div');
       rewardElement.innerHTML = `
         <h3>Account : ${key}</h3>
-        <p>Predecessor: ${reward.predecessor}</p>
-        <p>Successor: ${reward.successor}</p>
-        <p>Last Claim Slot: ${reward.lastClaimSlot}</p>
-        <p>Previous Season Rewards: ${reward.previousSeasonRewards}</p>
-        <p>Total Claimed Rewards: ${reward.totalClaimedRewards}</p>
-        <p>Last Update Slot: ${reward.lastUpdateSlot}</p>
+        <h5>Predecessor: ${reward.predecessor}</h5>
+        <h5>Successor: ${reward.successor}</h5>
+        <h5>Last Claim Slot: ${reward.lastClaimSlot}</h5>
+        <h5>Previous Season Rewards: ${reward.previousSeasonRewards}</h5>
+        <h5>Total Claimed Rewards: ${reward.totalClaimedRewards}</h5>
+        <h5>Last Update Slot: ${reward.lastUpdateSlot}</h5>
       `;
       rewardsList.appendChild(rewardElement);
     }
