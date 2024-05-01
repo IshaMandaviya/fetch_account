@@ -40,7 +40,7 @@ async function displayAllRewards() {
       const reward = rewards[key];
       const rewardElement = document.createElement('div');
       rewardElement.innerHTML = `
-        <h3>${key}</h3>
+        <h3>Account : ${key}</h3>
         <p>Predecessor: ${reward.predecessor}</p>
         <p>Successor: ${reward.successor}</p>
         <p>Last Claim Slot: ${reward.lastClaimSlot}</p>
