@@ -8,7 +8,8 @@
 </head>
 <body>
   <button id="runCodeButton">GET ALL ACCOUNT</button>
-  <button id="downloadButton">Download Rewards Data</button>
+  <button id="downloadJSONButton">Download Rewards Data (JSON)</button>
+  <button id="downloadCSVButton">Download Rewards Data (CSV)</button>
   <div id="rewardsList"></div>
 
   <script>
@@ -16,29 +17,62 @@
       await displayAllRewards();
     });
 
-    async function displayAllRewards() {
+//     async function displayAllRewards() {
+//       const rewards = await getAllRewardsAccount();
+//       const rewardsList = document.getElementById('rewardsList');
+
+//       rewardsList.innerHTML = ''; // Clear previous data
+// console.log("rewards",rewards);
+//     //   rewards.forEach(reward => {
+//     //     const rewardElement = document.createElement('div');
+//     //     rewardElement.textContent = JSON.stringify(reward);
+//     //     rewardsList.appendChild(rewardElement);
+//     //   });
+//     }
+async function displayAllRewards() {
+  const rewards = await getAllRewardsAccount();
+  const rewardsList = document.getElementById('rewardsList');
+
+  rewardsList.innerHTML = ''; // Clear previous data
+
+  for (const key in rewards) {
+    if (Object.hasOwnProperty.call(rewards, key)) {
+      const reward = rewards[key];
+      const rewardElement = document.createElement('div');
+      rewardElement.innerHTML = `
+        <h3>${key}</h3>
+        <p>Predecessor: ${reward.predecessor}</p>
+        <p>Successor: ${reward.successor}</p>
+        <p>Last Claim Slot: ${reward.lastClaimSlot}</p>
+        <p>Previous Season Rewards: ${reward.previousSeasonRewards}</p>
+        <p>Total Claimed Rewards: ${reward.totalClaimedRewards}</p>
+        <p>Last Update Slot: ${reward.lastUpdateSlot}</p>
+      `;
+      rewardsList.appendChild(rewardElement);
+    }
+  }
+}
+
+    async function downloadRewardsData(format) {
       const rewards = await getAllRewardsAccount();
-      const rewardsList = document.getElementById('rewardsList');
+      let rewardsText;
 
-      rewardsList.innerHTML = ''; // Clear previous data
-
-      rewards.forEach(reward => {
-        const rewardElement = document.createElement('div');
-        rewardElement.textContent = JSON.stringify(reward);
-        rewardsList.appendChild(rewardElement);
-      });
+      if (format === 'json') {
+        rewardsText = JSON.stringify(rewards, null, 2);
+        downloadFile(rewardsText, 'rewards_data.json', 'application/json');
+      } else if (format === 'csv') {
+        rewardsText = generateCSV(rewards);
+        downloadFile(rewardsText, 'rewards_data.csv', 'text/csv');
+      }
     }
 
-    async function downloadRewardsData() {
-      const rewards = await getAllRewardsAccount();
-      const rewardsText = rewards.map(reward => JSON.stringify(reward)).join('\n');
-
-      const blob = new Blob([rewardsText], { type: 'text/plain' });
+    function downloadFile(content, filename, mimeType) {
+      const blob = new Blob([content], { type: mimeType });
       const url = window.URL.createObjectURL(blob);
 
       const link = document.createElement('a');
       link.href = url;
-      link.setAttribute('download', 'rewards_data.json');
+      link.setAttribute('download', filename);
 
       document.body.appendChild(link);
       link.click();
@@ -47,10 +81,37 @@
       window.URL.revokeObjectURL(url);
     }
 
-    document.getElementById('downloadButton').addEventListener('click', async () => {
-      await downloadRewardsData();
+    // function generateCSV(rewards) {
+    //   let csvContent = "Predecessor,Successor,Last Claim Slot,Previous Season Rewards,Total Claimed Rewards,Last Update Slot\n";
+
+    //   rewards.forEach(reward => {
+    //     csvContent += `${reward.predecessor},${reward.successor},${reward.lastClaimSlot},${reward.previousSeasonRewards},${reward.totalClaimedRewards},${reward.lastUpdateSlot}\n`;
+    //   });
+
+    //   return csvContent;
+    // }
+    function generateCSV(rewards) {
+  let csvContent = "Account,Predecessor,Successor,Last Claim Slot,Previous Season Rewards,Total Claimed Rewards,Last Update Slot\n";
+
+  for (const key in rewards) {
+    if (Object.hasOwnProperty.call(rewards, key)) {
+      const reward = rewards[key];
+      csvContent += `${key},${reward.predecessor},${reward.successor},${reward.lastClaimSlot},${reward.previousSeasonRewards},${reward.totalClaimedRewards},${reward.lastUpdateSlot}\n`;
+    }
+  }
+
+  return csvContent;
+}
+
+    document.getElementById('downloadJSONButton').addEventListener('click', async () => {
+      await downloadRewardsData('json');
     });
 
+    document.getElementById('downloadCSVButton').addEventListener('click', async () => {
+      await downloadRewardsData('csv');
+    });
+
+    // const solanaWeb3 = solanaWeb3||web3;
     const Keypair = solanaWeb3.Keypair;
     const CONNECTION = new solanaWeb3.Connection(solanaWeb3.clusterApiUrl("devnet"));
     const PROGRAM = new solanaWeb3.PublicKey("8SJZiCLQWG8w6JqbStGjxaxBmhJpMDUse7rxCg7QgCRa");
@@ -137,14 +198,14 @@
         }
       );
 
-      let AllRewards = [];
+      let AllRewards = {};
 
       const book = await getBookkeeperAccountData(CONNECTION);
       let leg = book.leg;
 
       while (true) {
         const reward = await getRewardsAccountDataFromWallet(leg, CONNECTION);
-        AllRewards.push(reward);
+        AllRewards[leg.toBase58()] = reward;
 
         leg = reward.successor;
 
