@@ -7,7 +7,7 @@
   <script src="https://unpkg.com/@solana/web3.js@latest/lib/index.iife.js"></script>
 </head>
 <body>
-  <button id="runCodeButton">View Rewards Account</button>
+  <button id="runCodeButton">View Rewards Accounts</button>
   <button id="downloadJSONButton">Download Rewards Data (JSON)</button>
   <button id="downloadCSVButton">Download Rewards Data (CSV)</button>
   <div id="rewardsList"></div>
@@ -31,22 +31,37 @@
 //     }
 async function displayAllRewards() {
   const rewards = await getAllRewardsAccount();
+  const bookkeeper = await getBookkeeperAccountData(CONNECTION); // Fetch bookkeeper data
   const rewardsList = document.getElementById('rewardsList');
 
   rewardsList.innerHTML = ''; // Clear previous data
 
+  // Display bookkeeper data
+  const bookkeeperElement = document.createElement('div');
+  bookkeeperElement.innerHTML = `
+    <h3>Bookkeeper Data:</h3>
+    <p>Head: ${bookkeeper.head.toBase58()}</p>
+    <p>Leg: ${bookkeeper.leg.toBase58()}</p>
+    <p>Total Accounts: ${bookkeeper.totalAccounts}</p>
+    <p>Current Supply: ${bookkeeper.currentSupply}</p>
+    <hr>
+  `;
+  rewardsList.appendChild(bookkeeperElement);
+
+  // Display rewards data
   for (const key in rewards) {
     if (Object.hasOwnProperty.call(rewards, key)) {
       const reward = rewards[key];
       const rewardElement = document.createElement('div');
       rewardElement.innerHTML = `
-        <h4>Account : ${key}</h4>
-        <h5>Predecessor: ${reward.predecessor}</h5>
-        <h5>Successor: ${reward.successor}</h5>
+        <h4>User's Wallet Account: ${key}</h4>
+        <h5>Predecessor: ${reward.predecessor.toBase58()}</h5>
+        <h5>Successor: ${reward.successor.toBase58()}</h5>
         <h5>Last Claim Slot: ${reward.lastClaimSlot}</h5>
         <h5>Previous Season Rewards: ${reward.previousSeasonRewards}</h5>
         <h5>Total Claimed Rewards: ${reward.totalClaimedRewards}</h5>
         <h5>Last Update Slot: ${reward.lastUpdateSlot}</h5>
+        <hr>
       `;
       rewardsList.appendChild(rewardElement);
     }
